@@ -320,6 +320,8 @@ class Iseed
             ? var_export($array, true)
             : preg_replace("/[0-9]+ \=\>/i", '', var_export($array, true));
 
+        $content = preg_replace("/=> \n\s*Orangehill/", "=> Orangehill", $content);
+
         $lines = explode("\n", $content);
 
         $inString = false;
