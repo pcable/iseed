@@ -134,7 +134,18 @@ class Iseed
 
         if (!empty($exclude)) {
             $allColumns = \DB::connection($this->databaseName)->getSchemaBuilder()->getColumnListing($table);
-            $result = $result->select(array_diff($allColumns, $exclude));
+            $columns = array_diff($allColumns, $exclude);
+
+            //Add in raw fields
+            $columns = array_map(function($col) use($table){
+                $raw = config("iseed.raw-fields.$table.$col",null);
+                if($raw){
+                    return \DB::Raw(str_replace('$1', $col, $raw['getter']));
+                }else{
+                    return $col;
+                }
+            }, $columns);
+            $result = $result->select($columns);
         }
 
         if($orderBy) {
@@ -224,6 +235,15 @@ class Iseed
         foreach ($chunks as $chunk) {
             $this->addNewLines($inserts);
             $this->addIndent($inserts, 2);
+
+            //Add in raw fields where necessary
+            $rawColumns = config("iseed.raw-fields.$table", []);
+            for($row = 0; $row < count($chunk); $row++){
+                foreach ($rawColumns as $colName => $col) {
+                    $chunk[$row][$colName] = new IseedRawField($col['setter'], $chunk[$row][$colName]);
+                }
+            }
+
             $inserts .= sprintf(
                 "\DB::table('%s')->insert(%s);",
                 $table,
